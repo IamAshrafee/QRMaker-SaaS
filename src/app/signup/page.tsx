@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import { useFormState, useFormStatus } from "react-dom"
+import { useActionState } from "react"
+import { useFormStatus } from "react-dom"
 import { registerUser } from "@/actions/register"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -24,7 +25,7 @@ function SubmitButton() {
 }
 
 export default function SignupPage() {
-    const [state, dispatch] = useFormState(registerUser, undefined)
+    const [state, dispatch, isPending] = useActionState(registerUser, undefined)
     const router = useRouter()
 
     useEffect(() => {
