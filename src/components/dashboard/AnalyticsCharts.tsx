@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell } from "recharts"
+import React from "react"
 import { Globe, Smartphone, Calendar } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -21,6 +22,16 @@ export function AnalyticsCharts({ timeline, deviceData, locationData }: Analytic
         const params = new URLSearchParams(searchParams.toString())
         params.set("range", value)
         router.push(`?${params.toString()}`)
+    }
+
+    const [mounted, setMounted] = React.useState(false)
+
+    React.useEffect(() => {
+        setMounted(true)
+    }, [])
+
+    if (!mounted) {
+        return <div className="space-y-8 animate-pulse text-transparent select-none">Loading...</div>
     }
 
     return (
@@ -50,7 +61,7 @@ export function AnalyticsCharts({ timeline, deviceData, locationData }: Analytic
                 </CardHeader>
                 <CardContent>
                     <div className="h-[350px] w-full min-h-[350px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="99%" height="100%" minWidth={0} minHeight={0} debounce={1}>
                             <AreaChart data={timeline}>
                                 <defs>
                                     <linearGradient id="colorScansDetailed" x1="0" y1="0" x2="0" y2="1">
@@ -114,7 +125,7 @@ export function AnalyticsCharts({ timeline, deviceData, locationData }: Analytic
                             {(!deviceData || deviceData.every(d => d.value === 0)) ? (
                                 <div className="flex items-center justify-center h-full text-muted-foreground">No device data yet.</div>
                             ) : (
-                                <ResponsiveContainer width="100%" height="100%">
+                                <ResponsiveContainer width="99%" height="100%" minWidth={0} minHeight={0} debounce={1}>
                                     <PieChart>
                                         <Pie
                                             data={deviceData}
