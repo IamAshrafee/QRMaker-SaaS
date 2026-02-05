@@ -1,7 +1,9 @@
 import { notFound, redirect } from "next/navigation"
+import { headers } from "next/headers"
 import connectDB from "@/lib/db"
 import { User } from "@/models/User"
 import { Link } from "@/models/Link"
+import { trackLinkVisit } from "@/lib/analytics"
 
 // This is the Catch-All Dispatcher
 // It handles /username -> Bio Page
@@ -75,7 +77,9 @@ export default async function DispatcherPage({ params }: { params: Promise<{ slu
             return <div>Link is disabled.</div>;
         }
 
-        // TODO: Fire Analytics Event here (async)
+        // Fire Analytics Event (Async but awaited for reliability)
+        const headerList = await headers();
+        await trackLinkVisit(link._id, headerList);
 
         if (link.type === 'qr') {
             redirect(link.destinationUrl);
