@@ -1,9 +1,9 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
-import clientPromise from "@/lib/db" // Adjust if using adapter
-import { User } from "@/models/User" // We might need an adapter or manual check
+import { User } from "@/models/User"
 import { compare } from "bcryptjs"
 import connectDB from "@/lib/db"
+// @ts-ignore
 import { authConfig } from "./auth.config"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -15,7 +15,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                 await connectDB();
                 const user = await User.findOne({ email: credentials.email });
-                if (!user) return null; // Or throw error
+                if (!user) return null;
 
                 const passwordsMatch = await compare(credentials.password as string, user.password);
 
@@ -24,16 +24,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 return null;
             },
         }),
-        // Social Providers would act here
     ],
     callbacks: {
         async session({ session, token }) {
             if (token.sub && session.user) {
                 session.user.id = token.sub;
+                session.user.username = token.username as string | undefined;
             }
             return session;
         },
-        async jwt({ token }) {
+        async jwt({ token, user }) {
+            if (user) {
+                token.username = user.username as string | undefined;
+            }
             return token;
         }
     },
