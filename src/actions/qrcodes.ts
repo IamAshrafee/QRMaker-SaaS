@@ -268,3 +268,125 @@ export async function getLinkStats(id: string, range: string = "30d") {
         return { error: "Failed to fetch stats" }
     }
 }
+
+export async function getUserStats(range: string = "30d") {
+    try {
+        const session = await auth()
+        if (!session?.user?.id) return { error: "Unauthorized" }
+
+        await connectDB()
+
+        // 1. Get all user links
+        const userLinks = await Link.find({ user: session.user.id }).select('_id').lean()
+        const linkIds = userLinks.map((l: any) => l._id)
+
+        if (linkIds.length === 0) {
+            return {
+                stats: {
+                    timeline: [],
+                    deviceData: [],
+                    locationData: [],
+                    totalScans: 0
+                }
+            }
+        }
+
+        // --- Date Range Logic (reused) ---
+        let startDate = new Date()
+        let daysToFill = 30
+
+        if (range === "all") {
+            startDate = new Date(0)
+            daysToFill = 30 // Fallback for filling logic if needed, or just dont fill
+        } else {
+            const daysMap: Record<string, number> = {
+                "7d": 7,
+                "30d": 30,
+                "60d": 60,
+                "90d": 90,
+                "1y": 365
+            }
+            daysToFill = daysMap[range] || 30
+            startDate.setDate(startDate.getDate() - daysToFill)
+        }
+
+        const matchStage = { link: { $in: linkIds }, timestamp: { $gte: startDate } }
+
+        // --- Aggregation: Timeline ---
+        const timelineRaw = await Analytics.aggregate([
+            { $match: matchStage },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { "_id": 1 } }
+        ])
+
+        // Fill in missing dates
+        const timeline = []
+        const safeFillLimit = Math.min(daysToFill, 365)
+
+        for (let d = safeFillLimit; d >= 0; d--) {
+            const date = new Date()
+            date.setDate(date.getDate() - d)
+            const dateStr = date.toISOString().split('T')[0]
+            const found = timelineRaw.find((t: any) => t._id === dateStr)
+            const displayDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
+            timeline.push({
+                date: displayDate,
+                scans: found ? found.count : 0
+            })
+        }
+
+        // --- Aggregation: Devices ---
+        const deviceRaw = await Analytics.aggregate([
+            { $match: matchStage },
+            { $group: { _id: "$device", count: { $sum: 1 } } }
+        ])
+
+        const deviceColors: Record<string, string> = {
+            "Mobile": "#6366f1",
+            "Desktop": "#a855f7",
+            "Tablet": "#ec4899",
+            "Other": "#94a3b8"
+        }
+
+        const deviceData = deviceRaw.map((d: any) => ({
+            name: d._id || "Other",
+            value: d.count,
+            color: deviceColors[d._id] || deviceColors["Other"]
+        }))
+
+        // --- Aggregation: Locations ---
+        const locationRaw = await Analytics.aggregate([
+            { $match: matchStage },
+            { $group: { _id: "$country", count: { $sum: 1 } } },
+            { $sort: { count: -1 } }
+        ])
+
+        const locationData = locationRaw.map((l: any) => ({
+            name: l._id || "Unknown",
+            code: "UN",
+            scans: l.count
+        }))
+
+        // Total Scans in this range
+        const totalScans = timelineRaw.reduce((acc, curr) => acc + curr.count, 0)
+
+        return {
+            stats: {
+                timeline,
+                deviceData,
+                locationData,
+                totalScans
+            }
+        }
+
+    } catch (error) {
+        console.error("User Stats Error:", error)
+        return { error: "Failed to fetch stats" }
+    }
+}
