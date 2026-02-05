@@ -1,6 +1,6 @@
 "use server"
 
-import { signIn } from "@/auth"
+import { signIn, signOut } from "@/auth"
 import { AuthError } from "next-auth"
 
 export async function authenticate(prevState: string | undefined, formData: FormData) {
@@ -22,4 +22,8 @@ export async function authenticate(prevState: string | undefined, formData: Form
         }
         throw error // Rethrow so Next.js redirects happen
     }
+}
+
+export async function logout() {
+    await signOut({ redirectTo: "/login" });
 }

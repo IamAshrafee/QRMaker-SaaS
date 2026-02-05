@@ -13,6 +13,7 @@ import {
     LogOut
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { logout } from "@/actions/login"
 
 const navItems = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
@@ -71,7 +72,9 @@ export function Sidebar() {
                         <p className="text-sm font-medium truncate">Ashrafee</p>
                         <p className="text-xs text-muted-foreground truncate">Free Plan</p>
                     </div>
-                    <LogOut className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-red-500" />
+                    <button onClick={() => logout()} className="text-muted-foreground cursor-pointer hover:text-red-500 transition-colors">
+                        <LogOut className="w-4 h-4" />
+                    </button>
                 </div>
             </div>
         </aside>

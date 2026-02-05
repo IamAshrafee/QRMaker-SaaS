@@ -11,15 +11,54 @@ import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Download, Wifi, Globe, Contact } from "lucide-react"
 
+import { createQR } from "@/actions/qrcodes"
+import { toast } from "react-hot-toast"
+import { useRouter } from "next/navigation"
+
 export function QRBuilder() {
     const [url, setUrl] = useState("")
     const [color, setColor] = useState("#000000")
     const [bgColor, setBgColor] = useState("#ffffff")
+    const [isSaving, setIsSaving] = useState(false)
+    const router = useRouter()
 
-    // Download logic placeholder
+    const handleSave = async () => {
+        if (!url) {
+            toast.error("Please enter a URL")
+            return
+        }
+
+        setIsSaving(true)
+        const result = await createQR({
+            destinationUrl: url,
+            color,
+            bgColor,
+            title: "New QR Code" // Could add a title input later
+        })
+
+        setIsSaving(false)
+
+        if (result.error) {
+            toast.error(result.error)
+        } else {
+            toast.success("QR Code Saved!")
+            router.push("/dashboard/qrcodes")
+        }
+    }
+
+    // Download logic (frontend only for now)
     const handleDownload = () => {
-        // Logic to grab SVG/Canvas and download
-        alert("Download started (Mock)")
+        const svg = document.getElementById("qr-code-svg")
+        if (svg) {
+            const xml = new XMLSerializer().serializeToString(svg)
+            const dataUrl = "data:image/svg+xml;base64," + btoa(xml)
+            const link = document.createElement("a")
+            link.href = dataUrl
+            link.download = "qrcode.svg"
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+        }
     }
 
     return (
@@ -50,8 +89,8 @@ export function QRBuilder() {
                             />
                         </div>
                         <div className="flex items-center space-x-2">
-                            <Switch id="dynamic" defaultChecked />
-                            <Label htmlFor="dynamic">Dynamic Link (Trackable)</Label>
+                            <Switch id="dynamic" defaultChecked disabled />
+                            <Label htmlFor="dynamic">Dynamic Link (Always On)</Label>
                         </div>
                     </TabsContent>
 
@@ -83,14 +122,10 @@ export function QRBuilder() {
                     </div>
                 </div>
 
-                <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">Smart Rules (Pro)</h3>
-                    <Card className="bg-slate-50 dark:bg-slate-900 border-dashed">
-                        <CardContent className="pt-6 text-center space-y-2">
-                            <Label className="text-muted-foreground">Password Protection & Expiry</Label>
-                            <Button variant="outline" size="sm" className="w-full">Upgrade to Unlock</Button>
-                        </CardContent>
-                    </Card>
+                <div className="space-y-4 pt-4 border-t">
+                    <Button onClick={handleSave} disabled={isSaving} className="w-full bg-glorious-gradient text-white h-12 text-lg">
+                        {isSaving ? "Saving..." : "Save QR Code"}
+                    </Button>
                 </div>
 
             </div>
@@ -106,6 +141,7 @@ export function QRBuilder() {
                 <Card className="w-[300px] h-[300px] flex items-center justify-center shadow-2xl bg-white border-0 ring-1 ring-slate-200">
                     <div className="bg-white p-4 rounded-lg">
                         <QRCodeSVG
+                            id="qr-code-svg"
                             value={url || "https://qrmaker.saas"}
                             size={200}
                             fgColor={color}
@@ -116,11 +152,8 @@ export function QRBuilder() {
                 </Card>
 
                 <div className="mt-8 flex gap-4">
-                    <Button onClick={handleDownload} className="w-40 bg-glorious-gradient text-white">
+                    <Button onClick={handleDownload} variant="outline" className="w-40">
                         <Download className="w-4 h-4 mr-2" />
-                        Download PNG
-                    </Button>
-                    <Button variant="outline" className="w-40">
                         Download SVG
                     </Button>
                 </div>

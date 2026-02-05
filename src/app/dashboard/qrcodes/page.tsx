@@ -1,4 +1,4 @@
-"use client"
+
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -6,15 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Download, Edit, MoreHorizontal, QrCode, Trash } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import Link from "next/link"
+import { getLinks } from "@/actions/qrcodes"
 
-const mockData = [
-    { id: "1", name: "Restaurant Menu", url: "https://menu.com", scans: 120, createdAt: "Feb 1, 2026" },
-    { id: "2", name: "WiFi Guest", url: "WIFI:S:...", scans: 45, createdAt: "Jan 28, 2026" },
-]
+export default async function QRCodesPage() {
+    const { links, error } = await getLinks()
 
-export default function QRCodesPage() {
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">QR Codes</h2>
@@ -43,7 +41,23 @@ export default function QRCodesPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {mockData.map((item) => (
+                        {error && (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center text-red-500 py-10">
+                                    Failed to load links.
+                                </TableCell>
+                            </TableRow>
+                        )}
+
+                        {links && links.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                                    No QR codes found. Create one above!
+                                </TableCell>
+                            </TableRow>
+                        )}
+
+                        {links && links.map((item: any) => (
                             <TableRow key={item.id}>
                                 <TableCell>
                                     <div className="w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
