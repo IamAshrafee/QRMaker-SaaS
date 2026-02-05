@@ -3,10 +3,11 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Download, Edit, MoreHorizontal, QrCode, Trash } from "lucide-react"
-import { QRCodeActions } from "@/components/dashboard/QRCodeActions"
+import { QrCode } from "lucide-react"
+
 import Link from "next/link"
 import { getLinks } from "@/actions/qrcodes"
+import { QRCodeActions } from "@/components/dashboard/QRCodeActions"
 
 export default async function QRCodesPage() {
     const { links, error } = await getLinks()
@@ -75,7 +76,12 @@ export default async function QRCodesPage() {
                                 </TableCell>
                                 <TableCell className="text-muted-foreground">{item.createdAt}</TableCell>
                                 <TableCell className="text-right">
-                                    <QRCodeActions id={item.id} url={item.url} shortCode={item.slug} />
+                                    <QRCodeActions
+                                        id={item.id}
+                                        url={item.url}
+                                        shortCode={item.slug}
+                                        name={item.name}
+                                    />
                                 </TableCell>
                             </TableRow>
                         ))}

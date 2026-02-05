@@ -145,7 +145,7 @@ export async function deleteLink(id: string) {
     }
 }
 
-export async function getLinkStats(id: string) {
+export async function getLinkStats(id: string, range: string = "30d") {
     try {
         const session = await auth()
         if (!session?.user?.id) return { error: "Unauthorized" }
@@ -154,12 +154,34 @@ export async function getLinkStats(id: string) {
         const link = await Link.findOne({ _id: id, user: session.user.id }).lean()
         if (!link) return { error: "Not Found" }
 
-        // --- Aggregation: Timeline (Last 30 Days) ---
-        const thirtyDaysAgo = new Date()
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+        // --- Date Range Logic ---
+        let startDate = new Date()
+        let daysToFill = 30 // default
 
+        if (range === "all") {
+            startDate = new Date(0) // beginning of time
+            // For 'all', we might not want to fill empty days if the range is huge,
+            // or we calculate days between created and now.
+            // Let's approximate for chart filling:
+            const created = new Date(link.createdAt)
+            const now = new Date()
+            const diffTime = Math.abs(now.getTime() - created.getTime());
+            daysToFill = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        } else {
+            const daysMap: Record<string, number> = {
+                "7d": 7,
+                "30d": 30,
+                "60d": 60,
+                "90d": 90,
+                "1y": 365
+            }
+            daysToFill = daysMap[range] || 30
+            startDate.setDate(startDate.getDate() - daysToFill)
+        }
+
+        // --- Aggregation: Timeline ---
         const timelineRaw = await Analytics.aggregate([
-            { $match: { link: link._id, timestamp: { $gte: thirtyDaysAgo } } },
+            { $match: { link: link._id, timestamp: { $gte: startDate } } },
             {
                 $group: {
                     _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
@@ -169,15 +191,17 @@ export async function getLinkStats(id: string) {
             { $sort: { "_id": 1 } }
         ])
 
-        // Fill in missing dates for smooth chart
+        // Fill in missing dates
         const timeline = []
-        for (let d = 30; d >= 0; d--) {
+        // Limit filling to max 365 days to prevent loop explosion on 'all'
+        const safeFillLimit = Math.min(daysToFill, 365)
+
+        for (let d = safeFillLimit; d >= 0; d--) {
             const date = new Date()
             date.setDate(date.getDate() - d)
             const dateStr = date.toISOString().split('T')[0]
             const found = timelineRaw.find((t: any) => t._id === dateStr)
 
-            // Format "Jan 1"
             const displayDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
             timeline.push({
@@ -187,16 +211,19 @@ export async function getLinkStats(id: string) {
         }
 
         // --- Aggregation: Devices ---
+        // Also Filter by Date Range? Usually yes.
+        const matchStage = { link: link._id, timestamp: { $gte: startDate } }
+
         const deviceRaw = await Analytics.aggregate([
-            { $match: { link: link._id } },
+            { $match: matchStage },
             { $group: { _id: "$device", count: { $sum: 1 } } }
         ])
 
         const deviceColors: Record<string, string> = {
-            "Mobile": "#6366f1", // Indigo
-            "Desktop": "#a855f7", // Purple
-            "Tablet": "#ec4899", // Pink
-            "Other": "#94a3b8"   // Slate
+            "Mobile": "#6366f1",
+            "Desktop": "#a855f7",
+            "Tablet": "#ec4899",
+            "Other": "#94a3b8"
         }
 
         const deviceData = deviceRaw.map((d: any) => ({
@@ -205,17 +232,17 @@ export async function getLinkStats(id: string) {
             color: deviceColors[d._id] || deviceColors["Other"]
         }))
 
-        // --- Aggregation: Top Locations ---
+        // --- Aggregation: Locations (All) ---
+        // Removed $limit: 5
         const locationRaw = await Analytics.aggregate([
-            { $match: { link: link._id } },
+            { $match: matchStage },
             { $group: { _id: "$country", count: { $sum: 1 } } },
-            { $sort: { count: -1 } },
-            { $limit: 5 }
+            { $sort: { count: -1 } }
         ])
 
         const locationData = locationRaw.map((l: any) => ({
             name: l._id || "Unknown",
-            code: "UN", // You might want a mapping for flags later
+            code: "UN",
             scans: l.count
         }))
 

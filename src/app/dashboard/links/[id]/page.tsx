@@ -5,18 +5,9 @@ import { AnalyticsCharts } from "@/components/dashboard/AnalyticsCharts"
 import { getLinkStats } from "@/actions/qrcodes"
 import { notFound } from "next/navigation"
 
-export default async function LinkDetailPage({
-    params,
-    searchParams
-}: {
-    params: Promise<{ id: string }>,
-    searchParams: Promise<{ range?: string }>
-}) {
+export default async function LinkDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
-    const { range } = await searchParams
-    const selectedRange = range || "30d"
-
-    const { link, stats, error } = await getLinkStats(id, selectedRange)
+    const { link, stats, error } = await getLinkStats(id)
 
     if (error || !link) {
         if (error === "Not Found") return notFound()

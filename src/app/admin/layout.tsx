@@ -1,13 +1,12 @@
 import { AdminSidebar } from "@/components/admin/AdminSidebar"
 import { redirect } from "next/navigation"
-// import { auth } from "@/auth"
+import { auth } from "@/auth"
 
 // Mock Role Guard Component (Replace with real Auth later)
 async function RoleGuard({ children }: { children: React.ReactNode }) {
-    // const session = await auth()
-    // if (session?.user?.role !== "admin") redirect("/dashboard")
+    const session = await auth()
+    if (session?.user?.role !== "admin") redirect("/dashboard")
 
-    // For development, we allow access but this must be uncommented for production
     return <>{children}</>
 }
 

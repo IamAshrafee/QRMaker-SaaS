@@ -13,9 +13,10 @@ interface QRCodeActionsProps {
     id: string
     url: string
     shortCode: string
+    name: string
 }
 
-export function QRCodeActions({ id, url, shortCode }: QRCodeActionsProps) {
+export function QRCodeActions({ id, url, shortCode, name }: QRCodeActionsProps) {
     const router = useRouter()
 
     const handleDelete = async () => {
@@ -32,14 +33,25 @@ export function QRCodeActions({ id, url, shortCode }: QRCodeActionsProps) {
 
     const handleDownload = async () => {
         try {
-            // Generate QR Blob
-            const qrUrl = `${window.location.origin}/${shortCode}`
-            const dataUrl = await QRCode.toDataURL(qrUrl, { width: 400, margin: 2 })
+            // Generate QR Data URL
+            // In a real app, destination is the short link: domain.com/{shortCode}
+            // For dev/demo, we can use localhost or just the destination URL directly if short link logic isn't fully ready.
+            // Let's assume we want to encode the SHORT LINK.
+            const qrPayload = `${window.location.origin}/${shortCode}`
 
-            // Create Download Link
+            const dataUrl = await QRCode.toDataURL(qrPayload, {
+                width: 1000,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#ffffff'
+                }
+            })
+
+            // Create phantom link to trigger download
             const link = document.createElement('a')
             link.href = dataUrl
-            link.download = `qr-${shortCode}.png`
+            link.download = `qr-${name || shortCode}.png`
             document.body.appendChild(link)
             link.click()
             document.body.removeChild(link)
@@ -59,7 +71,9 @@ export function QRCodeActions({ id, url, shortCode }: QRCodeActionsProps) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
                 <DropdownMenuItem disabled><Edit className="w-4 h-4 mr-2" /> Edit (Coming Soon)</DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDownload}><Download className="w-4 h-4 mr-2" /> Download</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownload} className="cursor-pointer">
+                    <Download className="w-4 h-4 mr-2" /> Download PNG
+                </DropdownMenuItem>
                 <Link href={`/dashboard/links/${id}`} className="w-full">
                     <DropdownMenuItem className="cursor-pointer">
                         <MoreHorizontal className="w-4 h-4 mr-2" /> View Analytics

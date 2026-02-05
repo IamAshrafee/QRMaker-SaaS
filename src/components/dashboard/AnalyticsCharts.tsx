@@ -81,8 +81,9 @@ export function AnalyticsCharts({ timeline, deviceData, locationData }: Analytic
                     </CardHeader>
                     <CardContent className="overflow-y-auto pr-2 custom-scrollbar">
                         <div className="space-y-4">
-                            {locationData.length === 0 && <p className="text-center text-muted-foreground py-10">No location data yet.</p>}
-                            {locationData.map((country, i) => (
+                            {/* Check if locationData is valid array before mapping */}
+                            {(!locationData || locationData.length === 0) && <p className="text-center text-muted-foreground py-10">No location data yet.</p>}
+                            {locationData && locationData.map((country, i) => (
                                 <div key={country.name} className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className="text-sm font-bold text-muted-foreground w-6">{i + 1}.</div>
@@ -90,6 +91,7 @@ export function AnalyticsCharts({ timeline, deviceData, locationData }: Analytic
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <div className="w-16 md:w-24 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                            {/* Safe math for width calculation */}
                                             <div className="h-full bg-indigo-500" style={{ width: `${(country.scans / Math.max(...locationData.map(l => l.scans), 1)) * 100}%` }} />
                                         </div>
                                         <span className="text-sm font-bold w-8 text-right">{country.scans}</span>
@@ -108,7 +110,8 @@ export function AnalyticsCharts({ timeline, deviceData, locationData }: Analytic
                     </CardHeader>
                     <CardContent className="flex items-center justify-center">
                         <div className="h-[250px] w-full min-h-[250px]">
-                            {deviceData.every(d => d.value === 0) ? (
+                            {/* Check if deviceData is valid and has data */}
+                            {(!deviceData || deviceData.every(d => d.value === 0)) ? (
                                 <div className="flex items-center justify-center h-full text-muted-foreground">No device data yet.</div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
@@ -130,7 +133,8 @@ export function AnalyticsCharts({ timeline, deviceData, locationData }: Analytic
                             )}
                         </div>
                         <div className="space-y-2">
-                            {!deviceData.every(d => d.value === 0) && deviceData.map((item) => (
+                            {/* Only show legend if there is data */}
+                            {deviceData && !deviceData.every(d => d.value === 0) && deviceData.map((item) => (
                                 <div key={item.name} className="flex items-center gap-2 text-sm">
                                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
                                     <span className="text-muted-foreground">{item.name}</span>
