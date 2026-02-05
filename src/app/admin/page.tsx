@@ -1,9 +1,17 @@
-"use client"
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Activity, CreditCard, DollarSign, Users } from "lucide-react"
+import { auth } from "@/auth"
+import { redirect } from "next/navigation"
 
-export default function AdminOverview() {
+export default async function AdminOverview() {
+    // Server-side role check with full session access
+    const session = await auth();
+
+    // Redirect non-admin users to dashboard
+    if (!session?.user || (session.user as any).role !== 'admin') {
+        redirect('/dashboard');
+    }
+
     return (
         <div className="space-y-8">
             <div>

@@ -2,15 +2,31 @@
 
 import { signIn, signOut } from "@/auth"
 import { AuthError } from "next-auth"
+import { User } from "@/models/User"
+import connectDB from "@/lib/db"
+import { redirect } from "next/navigation"
 
 export async function authenticate(prevState: string | undefined, formData: FormData) {
     try {
-        // We can explicitly specify redirectTo
+        // Get user role to determine redirect
+        const email = formData.get("email") as string;
+
+        await connectDB();
+        const user = await User.findOne({ email });
+
+        // Determine redirect based on role
+        const redirectTo = user?.role === "admin" ? "/admin" : "/dashboard";
+
+        // Sign in without auto-redirect
         await signIn("credentials", {
             email: formData.get("email"),
             password: formData.get("password"),
-            redirectTo: "/dashboard"
+            redirect: false
         })
+
+        // Manually redirect based on role
+        redirect(redirectTo);
+
     } catch (error) {
         if (error instanceof AuthError) {
             switch (error.type) {
@@ -20,7 +36,8 @@ export async function authenticate(prevState: string | undefined, formData: Form
                     return "Something went wrong."
             }
         }
-        throw error // Rethrow so Next.js redirects happen
+        // If it's a redirect error (from redirect() call), throw it
+        throw error
     }
 }
 
