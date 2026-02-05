@@ -7,6 +7,7 @@ import { z } from "zod"
 
 const RegisterSchema = z.object({
     name: z.string().min(1, "Name is required"),
+    username: z.string().min(3, "Username must be at least 3 chars").regex(/^[a-zA-Z0-9_-]+$/, "Invalid username format"),
     email: z.string().email("Invalid email address"),
     password: z.string().min(6, "Password must be at least 6 characters"),
 })
@@ -14,6 +15,7 @@ const RegisterSchema = z.object({
 export async function registerUser(prevState: any, formData: FormData) {
     const validatedFields = RegisterSchema.safeParse({
         name: formData.get("name"),
+        username: formData.get("username"),
         email: formData.get("email"),
         password: formData.get("password"),
     })
@@ -24,23 +26,18 @@ export async function registerUser(prevState: any, formData: FormData) {
         }
     }
 
-    const { name, email, password } = validatedFields.data
+    const { name, username, email, password } = validatedFields.data
 
     try {
         await connectDB()
 
-        const existingUser = await User.findOne({ email })
+        const existingUser = await User.findOne({ $or: [{ email }, { username }] })
         if (existingUser) {
-            return { error: "Email already in use." }
+            if (existingUser.email === email) return { error: "Email already in use." }
+            if (existingUser.username === username) return { error: "Username is already taken." }
         }
 
         const hashedPassword = await bcrypt.hash(password, 10)
-
-        // Generate a default username from email logic or random
-        // For now, simpler: check if username exists, if so append random logic
-        // Implementation: simple slug from name + random 4 digits
-        const baseSlug = name.toLowerCase().replace(/\s+/g, '')
-        const username = `${baseSlug}${Math.floor(1000 + Math.random() * 9000)}`
 
         await User.create({
             name,
