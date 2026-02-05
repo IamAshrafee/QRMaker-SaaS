@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
     DndContext,
     closestCenter,
@@ -29,6 +29,11 @@ const initialLinks = [
 
 export function BioLinkBuilder() {
     const [links, setLinks] = useState(initialLinks)
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -36,6 +41,8 @@ export function BioLinkBuilder() {
             coordinateGetter: sortableKeyboardCoordinates,
         })
     )
+
+    if (!mounted) return null
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event

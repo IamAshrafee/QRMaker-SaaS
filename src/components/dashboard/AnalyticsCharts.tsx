@@ -38,7 +38,7 @@ export function AnalyticsCharts() {
                     <CardTitle>Performance (Last 30 Days)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="h-[350px] w-full">
+                    <div className="h-[350px] w-full min-h-[350px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={timelineData}>
                                 <defs>
@@ -95,7 +95,7 @@ export function AnalyticsCharts() {
                         <Smartphone className="w-4 h-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent className="flex items-center justify-center">
-                        <div className="h-[250px] w-full">
+                        <div className="h-[250px] w-full min-h-[250px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
