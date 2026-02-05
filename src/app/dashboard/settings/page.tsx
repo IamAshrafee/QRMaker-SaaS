@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { CreditCard, Lock, User, Megaphone, Receipt } from "lucide-react"
+import { Lock, User, Megaphone } from "lucide-react"
 
 export default function SettingsPage() {
     return (
@@ -19,7 +19,6 @@ export default function SettingsPage() {
                 <TabsList className="bg-slate-100 dark:bg-slate-800 p-1">
                     <TabsTrigger value="profile" className="gap-2"><User className="w-4 h-4" /> Profile</TabsTrigger>
                     <TabsTrigger value="pixels" className="gap-2"><Megaphone className="w-4 h-4" /> Marketing</TabsTrigger>
-                    <TabsTrigger value="billing" className="gap-2"><CreditCard className="w-4 h-4" /> Billing</TabsTrigger>
                 </TabsList>
 
                 {/* Profile Tab */}
@@ -93,59 +92,7 @@ export default function SettingsPage() {
                     </Card>
                 </TabsContent>
 
-                {/* Billing Tab */}
-                <TabsContent value="billing" className="space-y-6">
 
-                    {/* Current Plan */}
-                    <Card className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-500/20">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <div className="space-y-1">
-                                <CardTitle className="text-xl text-indigo-500">Free Plan</CardTitle>
-                                <CardDescription>You are currently on the starter tier.</CardDescription>
-                            </div>
-                            <div className="px-3 py-1 bg-indigo-500 text-white text-xs font-bold rounded-full">
-                                ACTIVE
-                            </div>
-                        </CardHeader>
-                        <CardContent className="pt-6">
-                            <div className="text-3xl font-bold">$0<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
-                            <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-                                <p>• 5 QR Codes limit</p>
-                                <p>• Basic Analytics</p>
-                                <p>• No Retargeting</p>
-                            </div>
-                            <div className="mt-6">
-                                <Button className="w-full bg-glorious-gradient hover:opacity-90">Upgrade to Pro</Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Invoices */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Invoices</CardTitle>
-                            <CardDescription>View your billing history.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex flex-col gap-4">
-                                <div className="flex items-center justify-between p-4 border rounded-lg">
-                                    <div className="flex items-center gap-4">
-                                        <Receipt className="w-8 h-8 text-muted-foreground" />
-                                        <div>
-                                            <p className="font-medium">INV-001</p>
-                                            <p className="text-xs text-muted-foreground">Feb 1, 2026</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        <span className="font-bold">$0.00</span>
-                                        <Button variant="ghost" size="sm">Download</Button>
-                                    </div>
-                                </div>
-                                <p className="text-center text-sm text-muted-foreground py-4">No other invoices found.</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
             </Tabs>
         </div>
     )
