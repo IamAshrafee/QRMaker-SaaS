@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema({
     name: { type: String, required: true },
+    username: { type: String, unique: true, sparse: true },
     email: { type: String, required: true, unique: true },
     image: { type: String },
     password: { type: String }, // Optional for social login
