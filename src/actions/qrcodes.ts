@@ -3,6 +3,7 @@
 import { auth } from "@/auth"
 import connectDB from "@/lib/db"
 import { Link } from "@/models/Link"
+import { Analytics } from "@/models/Analytics"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
@@ -145,7 +146,6 @@ export async function deleteLink(id: string) {
 }
 
 export async function getLinkStats(id: string) {
-    // For Detail Page
     try {
         const session = await auth()
         if (!session?.user?.id) return { error: "Unauthorized" }
@@ -154,8 +154,71 @@ export async function getLinkStats(id: string) {
         const link = await Link.findOne({ _id: id, user: session.user.id }).lean()
         if (!link) return { error: "Not Found" }
 
-        // Here we would fetch real analytics from Analytics model (future)
-        // For 'Real Dev' phase - starting with just the link data
+        // --- Aggregation: Timeline (Last 30 Days) ---
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+        const timelineRaw = await Analytics.aggregate([
+            { $match: { link: link._id, timestamp: { $gte: thirtyDaysAgo } } },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { "_id": 1 } }
+        ])
+
+        // Fill in missing dates for smooth chart
+        const timeline = []
+        for (let d = 30; d >= 0; d--) {
+            const date = new Date()
+            date.setDate(date.getDate() - d)
+            const dateStr = date.toISOString().split('T')[0]
+            const found = timelineRaw.find((t: any) => t._id === dateStr)
+
+            // Format "Jan 1"
+            const displayDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
+            timeline.push({
+                date: displayDate,
+                scans: found ? found.count : 0
+            })
+        }
+
+        // --- Aggregation: Devices ---
+        const deviceRaw = await Analytics.aggregate([
+            { $match: { link: link._id } },
+            { $group: { _id: "$device", count: { $sum: 1 } } }
+        ])
+
+        const deviceColors: Record<string, string> = {
+            "Mobile": "#6366f1", // Indigo
+            "Desktop": "#a855f7", // Purple
+            "Tablet": "#ec4899", // Pink
+            "Other": "#94a3b8"   // Slate
+        }
+
+        const deviceData = deviceRaw.map((d: any) => ({
+            name: d._id || "Other",
+            value: d.count,
+            color: deviceColors[d._id] || deviceColors["Other"]
+        }))
+
+        // --- Aggregation: Top Locations ---
+        const locationRaw = await Analytics.aggregate([
+            { $match: { link: link._id } },
+            { $group: { _id: "$country", count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 5 }
+        ])
+
+        const locationData = locationRaw.map((l: any) => ({
+            name: l._id || "Unknown",
+            code: "UN", // You might want a mapping for flags later
+            scans: l.count
+        }))
+
         return {
             link: {
                 id: link._id.toString(),
@@ -164,10 +227,17 @@ export async function getLinkStats(id: string) {
                 destinationUrl: link.destinationUrl,
                 createdAt: link.createdAt,
                 clicks: link.clicks
+            },
+            stats: {
+                timeline,
+                deviceData,
+                locationData,
+                totalScans: link.clicks || 0
             }
         }
 
     } catch (error) {
+        console.error("Stats Error:", error)
         return { error: "Failed to fetch stats" }
     }
 }

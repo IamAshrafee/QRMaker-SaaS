@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Download, Edit, MoreHorizontal, QrCode, Trash } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { QRCodeActions } from "@/components/dashboard/QRCodeActions"
 import Link from "next/link"
 import { getLinks } from "@/actions/qrcodes"
 
@@ -75,23 +75,7 @@ export default async function QRCodesPage() {
                                 </TableCell>
                                 <TableCell className="text-muted-foreground">{item.createdAt}</TableCell>
                                 <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon">
-                                                <MoreHorizontal className="w-4 h-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem><Edit className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
-                                            <DropdownMenuItem><Download className="w-4 h-4 mr-2" /> Download</DropdownMenuItem>
-                                            <Link href={`/dashboard/links/${item.id}`} className="w-full">
-                                                <DropdownMenuItem className="cursor-pointer">
-                                                    <MoreHorizontal className="w-4 h-4 mr-2" /> View Analytics
-                                                </DropdownMenuItem>
-                                            </Link>
-                                            <DropdownMenuItem className="text-red-500"><Trash className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    <QRCodeActions id={item.id} url={item.url} shortCode={item.slug} />
                                 </TableCell>
                             </TableRow>
                         ))}

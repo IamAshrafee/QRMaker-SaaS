@@ -5,9 +5,18 @@ import { AnalyticsCharts } from "@/components/dashboard/AnalyticsCharts"
 import { getLinkStats } from "@/actions/qrcodes"
 import { notFound } from "next/navigation"
 
-export default async function LinkDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function LinkDetailPage({
+    params,
+    searchParams
+}: {
+    params: Promise<{ id: string }>,
+    searchParams: Promise<{ range?: string }>
+}) {
     const { id } = await params
-    const { link, error } = await getLinkStats(id)
+    const { range } = await searchParams
+    const selectedRange = range || "30d"
+
+    const { link, stats, error } = await getLinkStats(id, selectedRange)
 
     if (error || !link) {
         if (error === "Not Found") return notFound()
@@ -45,7 +54,11 @@ export default async function LinkDetailPage({ params }: { params: Promise<{ id:
             </div>
 
             {/* Client-Side Charts */}
-            <AnalyticsCharts />
+            <AnalyticsCharts
+                timeline={stats?.timeline || []}
+                deviceData={stats?.deviceData || []}
+                locationData={stats?.locationData || []}
+            />
 
         </div>
     )
