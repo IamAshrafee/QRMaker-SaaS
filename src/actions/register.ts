@@ -31,6 +31,14 @@ export async function registerUser(prevState: any, formData: FormData) {
     try {
         await connectDB()
 
+        // Check if Global Registration is allowed
+        const { getSettings } = await import("@/actions/settings-actions");
+        const settings = await getSettings();
+
+        if (settings.system?.allowRegistration === false) {
+            return { error: "New user registration is currently disabled." }
+        }
+
         const existingUser = await User.findOne({ $or: [{ email }, { username }] })
         if (existingUser) {
             if (existingUser.email === email) return { error: "Email already in use." }

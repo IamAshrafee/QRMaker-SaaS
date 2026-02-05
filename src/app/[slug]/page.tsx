@@ -4,6 +4,67 @@ import connectDB from "@/lib/db"
 import { User } from "@/models/User"
 import { Link } from "@/models/Link"
 import { trackLinkVisit } from "@/lib/analytics"
+import { getTheme } from "@/lib/themes"
+
+import { Metadata } from "next"
+
+// --- SEO Metadata Generation ---
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+    const { slug } = await params
+    await connectDB()
+
+    // 1. Check User (Bio Page)
+    const user = await User.findOne({ username: slug })
+    if (user) {
+        const bioLink = await Link.findOne({ user: user._id, type: 'bio' })
+        const title = bioLink?.title || user.name || "My Bio Page"
+        const desc = bioLink?.bioConfig?.description || `Check out ${user.name}'s links on QRMaker.`
+        const image = bioLink?.bioConfig?.avatar
+
+        return {
+            title: title + " | QRMaker",
+            description: desc,
+            openGraph: {
+                title,
+                description: desc,
+                images: image ? [image] : [],
+                type: 'profile'
+            }
+        }
+    }
+
+    // 2. Check Link (QR or Bio)
+    const link = await Link.findOne({ slug })
+    if (link) {
+        const title = link.title || "QRMaker Link"
+        // If it's a bio page accessed via slug
+        if (link.type === 'bio') {
+            const desc = link.bioConfig?.description || "Check out these links."
+            const image = link.bioConfig?.avatar
+            return {
+                title: title + " | QRMaker",
+                description: desc,
+                openGraph: {
+                    title,
+                    description: desc,
+                    images: image ? [image] : []
+                }
+            }
+        }
+        // If it's a QR code redirect, we might not need rich metadata as it redirects fast,
+        // but for sharing previews it's good.
+        return {
+            title: title,
+            description: "Redirecting...",
+            openGraph: { title }
+        }
+    }
+
+    return {
+        title: "Not Found | QRMaker",
+        description: "The requested page was not found."
+    }
+}
 
 // This is the Catch-All Dispatcher
 // It handles /username -> Bio Page
@@ -17,61 +78,24 @@ export default async function DispatcherPage({ params }: { params: Promise<{ slu
     // 2. Check for Username (Bio Page)
     const user = await User.findOne({ username: slug });
     if (user) {
-        // Fetch the Bio Config for this user
+        // Fetch the Bio Config for this user. 
+        // NOTE: A user might have multiple bio pages, usually we want the "primary" one or just the first.
+        // Or if the slug matches the user, we find the bio page associated with that user.
         const bioLink = await Link.findOne({ user: user._id, type: 'bio' });
-        const links = bioLink?.bioConfig?.links || [];
 
-        return (
-            <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex justify-center p-4">
-                <div className="w-full max-w-md mt-10 space-y-8">
-                    {/* Profile Header */}
-                    <div className="text-center space-y-4">
-                        <div className="w-28 h-28 mx-auto rounded-full bg-slate-200 border-4 border-white shadow-lg overflow-hidden relative">
-                            {/* Avatar Placeholder or Image */}
-                            <div className="absolute inset-0 flex items-center justify-center bg-glorious-gradient text-white text-3xl font-bold">
-                                {user.name.charAt(0)}
-                            </div>
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">{user.name}</h1>
-                            <p className="text-muted-foreground">@{user.username}</p>
-                        </div>
-                    </div>
-
-                    {/* Links */}
-                    <div className="space-y-3">
-                        {links.length === 0 && (
-                            <div className="text-center p-4 text-muted-foreground">
-                                No links added yet.
-                            </div>
-                        )}
-                        {links.map((link: any, idx: number) => (
-                            <a
-                                key={link.id || idx}
-                                href={link.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block w-full p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:scale-[1.02] hover:shadow-md transition-all duration-200 text-center font-medium"
-                            >
-                                {link.title}
-                            </a>
-                        ))}
-                    </div>
-
-                    {/* Footer */}
-                    <div className="pt-8 text-center">
-                        <a href="/" className="inline-flex items-center gap-1 text-xs text-muted-foreground font-semibold opacity-70 hover:opacity-100 transition-opacity">
-                            <span className="w-3 h-3 bg-indigo-500 rounded-sm"></span>
-                            Created with QRMaker
-                        </a>
-                    </div>
-                </div>
-            </div>
-        );
+        if (bioLink) {
+            return renderBioPage(bioLink, user);
+        }
+        // If user exists but no bio link, 404 or maybe a default profile? 
+        // Currently 404 falling through.
     }
 
-    // 3. Check for Short Link (QR Redirect)
-    const link = await Link.findOne({ slug: slug });
+    // 3. Check for Short Link (QR Redirect or Direct Bio Page)
+    // Note: If slug matched a username, we handled it above. 
+    // If slug is a unique ID for a link (even a bio link), we handle it here.
+    const link = await Link.findOne({ slug: slug }).populate('user');
+    // Populating user needed for displaying user info if we render bio page here
+
     if (link) {
         if (!link.active) {
             return <div>Link is disabled.</div>;
@@ -86,14 +110,92 @@ export default async function DispatcherPage({ params }: { params: Promise<{ slu
         }
 
         if (link.type === 'bio') {
-            // This assumes specific bio page link? Or just redirect?
-            // Usually bio type links are accessed via user profile, but if they have a short ID too:
-            // We might prefer to redirect to the /username version or render it here.
-            // For now, redirect to destinationUrl if present, else render.
-            if (link.destinationUrl) redirect(link.destinationUrl);
+            // Render the Bio Page for this specific link
+            // We need the user object, which we populated above.
+            return renderBioPage(link, link.user);
         }
     }
 
     // 4. Nothing found
     return notFound();
 }
+
+// Helper to render the Bio Page UI
+function renderBioPage(link: any, user: any) {
+    const links = link?.bioConfig?.links || [];
+    const themeId = link?.bioConfig?.theme || 'default';
+    const theme = getTheme(themeId);
+
+    // Use link's specific info, fallback to user info
+    const displayName = link.title || user?.name || "User";
+    const displayAvatar = link.bioConfig?.avatar; // || user avatar if we had it
+    const displayDesc = link.bioConfig?.description || "";
+    const username = user?.username || "user";
+
+    const buttonRadiusClass =
+        theme.buttonStyle === 'pill' ? 'rounded-full' :
+            theme.buttonStyle === 'square' ? 'rounded-none' :
+                theme.buttonStyle === 'shadow' ? 'rounded-xl shadow-lg border-b-4 border-black/10' :
+                    'rounded-lg'; // default/rounded
+
+    return (
+        <div
+            className="min-h-screen flex justify-center p-4 transition-colors duration-500"
+            style={{ background: theme.background, color: theme.textColor }}
+        >
+            <div className="w-full max-w-md mt-10 space-y-8">
+                {/* Profile Header */}
+                <div className="text-center space-y-4">
+                    <div className="w-28 h-28 mx-auto rounded-full bg-white/20 backdrop-blur-sm border-4 border-white/30 shadow-xl overflow-hidden relative">
+                        {displayAvatar ? (
+                            <img src={displayAvatar} alt={displayName} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-3xl font-bold">
+                                {displayName.charAt(0).toUpperCase()}
+                            </div>
+                        )}
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight drop-shadow-sm">{displayName}</h1>
+                        <p className="opacity-80 font-medium">@{username}</p>
+                        {displayDesc && <p className="mt-2 text-sm opacity-90">{displayDesc}</p>}
+                    </div>
+                </div>
+
+                {/* Links */}
+                <div className="space-y-4">
+                    {links.length === 0 && (
+                        <div className="text-center p-4 opacity-70">
+                            No links added yet.
+                        </div>
+                    )}
+                    {links.map((linkItem: any, idx: number) => (
+                        <a
+                            key={linkItem.id || idx}
+                            href={linkItem.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`block w-full p-4 hover:scale-[1.02] hover:brightness-110 transition-all duration-200 text-center font-bold ${buttonRadiusClass}`}
+                            style={{
+                                background: theme.buttonBg,
+                                color: theme.buttonText,
+                                boxShadow: theme.buttonStyle === 'shadow' ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none'
+                            }}
+                        >
+                            {linkItem.title}
+                        </a>
+                    ))}
+                </div>
+
+                {/* Footer */}
+                <div className="pt-8 text-center">
+                    <a href="/" className="inline-flex items-center gap-1 text-xs font-semibold opacity-60 hover:opacity-100 transition-opacity">
+                        <span className="w-3 h-3 bg-current rounded-full opacity-50"></span>
+                        Created with QRMaker
+                    </a>
+                </div>
+            </div>
+        </div>
+    );
+}
+

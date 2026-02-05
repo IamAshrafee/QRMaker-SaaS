@@ -97,7 +97,42 @@ export async function createQR(data: {
     }
 }
 
-export async function getLinks(limit = 20, offset = 0) {
+export async function createBioPage(data?: { title?: string, slug?: string }) {
+    try {
+        const session = await auth()
+        if (!session?.user?.id) return { error: "Unauthorized" }
+        await connectDB()
+
+        const slug = data?.slug || await generateUniqueSlug()
+
+        // Check slug uniqueness if custom slug provided (simple check)
+        if (data?.slug) {
+            const existing = await Link.findOne({ slug: data.slug })
+            if (existing) return { error: "Link ID already exists" }
+        }
+
+        const newLink = await Link.create({
+            user: session.user.id,
+            slug,
+            type: "bio",
+            title: data?.title || "My Bio Page",
+            bioConfig: {
+                theme: 'default',
+                links: [],
+                avatar: "",
+                description: "Welcome to my page"
+            }
+        })
+
+        revalidatePath("/dashboard/bio")
+        return { success: true, id: newLink._id.toString() }
+    } catch (error) {
+        console.error("Create Bio Page Error:", error)
+        return { error: "Failed to create Bio Page" }
+    }
+}
+
+export async function getLinks(limit = 20, offset = 0, type: 'qr' | 'bio' = 'qr') {
     try {
         const session = await auth()
         if (!session?.user?.id) return { error: "Unauthorized" }
@@ -105,7 +140,7 @@ export async function getLinks(limit = 20, offset = 0) {
         await connectDB()
 
         // Fetch links sorted by newest
-        const links = await Link.find({ user: session.user.id, type: 'qr' }) // Filter by 'qr' for the QR page
+        const links = await Link.find({ user: session.user.id, type })
             .sort({ createdAt: -1 })
             .limit(limit)
             .skip(offset)
@@ -114,11 +149,12 @@ export async function getLinks(limit = 20, offset = 0) {
         // Convert _id and dates to string for serialization
         const serialized = links.map((link: any) => ({
             id: link._id.toString(),
-            name: link.title || link.destinationUrl,
-            url: link.destinationUrl,
+            name: link.title || link.slug,
+            url: link.type === 'qr' ? link.destinationUrl : `${process.env.NEXT_PUBLIC_APP_URL || ''}/${link.slug}`,
             scans: link.clicks || 0,
             createdAt: new Date(link.createdAt).toLocaleDateString(),
-            slug: link.slug
+            slug: link.slug,
+            type: link.type // Include type for UI logic
         }))
 
         return { links: serialized }
@@ -251,6 +287,7 @@ export async function getLinkStats(id: string, range: string = "30d") {
                 id: link._id.toString(),
                 title: link.title,
                 slug: link.slug,
+                type: link.type,
                 destinationUrl: link.destinationUrl,
                 createdAt: link.createdAt,
                 clicks: link.clicks

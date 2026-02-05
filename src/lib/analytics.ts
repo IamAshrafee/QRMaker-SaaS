@@ -1,6 +1,8 @@
 import { Analytics } from "@/models/Analytics";
+import { Link } from "@/models/Link";
 import { UAParser } from "ua-parser-js";
 import path from "path";
+import fs from "fs";
 
 /**
  * Tracks a link visit by recording user analytics data into the database.
@@ -22,17 +24,14 @@ export async function trackLinkVisit(linkId: string, headers: Headers) {
         try {
             // Fix for Next.js/Turbopack failing to find geoip-lite data
             if (!(global as any).geodatadir) {
-                try {
-                    // Dynamically resolve the path to geoip-lite/package.json to find the data folder consistently
-                    const { createRequire } = await import('module');
-                    const require = createRequire(import.meta.url);
-                    const packagePath = require.resolve("geoip-lite/package.json");
-                    (global as any).geodatadir = path.join(path.dirname(packagePath), "data");
-                    // console.log("[Analytics] GeoIP Data Dir set to:", (global as any).geodatadir);
-                } catch (resolveError) {
-                    // Fallback to node_modules/geoip-lite/data relative to CWD if resolve fails
-                    (global as any).geodatadir = path.join(process.cwd(), "node_modules", "geoip-lite", "data");
-                    console.warn("[Analytics] Could not resolve geoip-lite via require, using fallback:", (global as any).geodatadir);
+                const candidateDir = path.join(process.cwd(), "node_modules", "geoip-lite", "data");
+                const candidateFile = path.join(candidateDir, "geoip-country.dat");
+
+                if (fs.existsSync(candidateFile)) {
+                    (global as any).geodatadir = candidateDir;
+                } else {
+                    // Data file missing, skip lookup to avoid ENOENT crash
+                    throw new Error("GeoIP data file not found");
                 }
             }
 
@@ -45,8 +44,10 @@ export async function trackLinkVisit(linkId: string, headers: Headers) {
                 city = geo.city || "Unknown";
             }
         } catch (geoError) {
-            console.warn("[Analytics] GeoIP lookup failed:", geoError);
-            // Fail gracefully, defaulting to Unknown
+            // Fail gracefully without spamming console for known missing file
+            if ((geoError as any)?.message !== "GeoIP data file not found") {
+                // console.warn("[Analytics] GeoIP lookup failed:", geoError);
+            }
         }
 
         // 3. Parse User Agent
@@ -63,18 +64,21 @@ export async function trackLinkVisit(linkId: string, headers: Headers) {
 
         // 5. Save to Database
         // Note: DB Connection is assumed to be handled by the caller.
-        await Analytics.create({
-            link: linkId,
-            timestamp: new Date(),
-            ip: detectedIp,
-            userAgent: userAgentString,
-            country,
-            city,
-            browser,
-            os,
-            device: deviceType,
-            referrer
-        });
+        await Promise.all([
+            Analytics.create({
+                link: linkId,
+                timestamp: new Date(),
+                ip: detectedIp,
+                userAgent: userAgentString,
+                country,
+                city,
+                browser,
+                os,
+                device: deviceType,
+                referrer
+            }),
+            Link.findByIdAndUpdate(linkId, { $inc: { clicks: 1 } })
+        ]);
 
         console.log(`[Analytics] Tracked visit for link ${linkId} from ${country}, ${city}`);
 

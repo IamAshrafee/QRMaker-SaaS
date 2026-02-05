@@ -35,12 +35,21 @@ export default async function LinkDetailPage({ params }: { params: Promise<{ id:
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {link.type === 'bio' && (
+                        <Link href={`/dashboard/links/${id}/content`}>
+                            <Button variant="outline" className="border-indigo-500/20 hover:bg-indigo-500/10">
+                                Edit Content
+                            </Button>
+                        </Link>
+                    )}
                     <Button variant="outline" className="border-indigo-500/20 hover:bg-indigo-500/10">
                         <Download className="w-4 h-4 mr-2" /> Download QR
                     </Button>
-                    <Button className="bg-glorious-gradient hover:opacity-90">
-                        Edit Design
-                    </Button>
+                    <Link href={`/dashboard/links/${id}/editor`}>
+                        <Button className="bg-glorious-gradient hover:opacity-90">
+                            Edit Design
+                        </Button>
+                    </Link>
                 </div>
             </div>
 
