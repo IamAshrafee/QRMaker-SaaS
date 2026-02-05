@@ -70,6 +70,11 @@ export default function QRCodesPage() {
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuItem><Edit className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
                                             <DropdownMenuItem><Download className="w-4 h-4 mr-2" /> Download</DropdownMenuItem>
+                                            <Link href={`/dashboard/links/${item.id}`} className="w-full">
+                                                <DropdownMenuItem className="cursor-pointer">
+                                                    <MoreHorizontal className="w-4 h-4 mr-2" /> View Analytics
+                                                </DropdownMenuItem>
+                                            </Link>
                                             <DropdownMenuItem className="text-red-500"><Trash className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
