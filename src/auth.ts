@@ -13,15 +13,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             async authorize(credentials) {
                 if (!credentials?.email || !credentials?.password) return null;
 
-                await connectDB();
-                const user = await User.findOne({ email: credentials.email });
-                if (!user) return null;
+                try {
+                    await connectDB();
+                    console.log("Auth: Checking user", credentials.email)
+                    const user = await User.findOne({ email: credentials.email });
+                    if (!user) {
+                        console.log("Auth: User not found")
+                        return null;
+                    }
 
-                const passwordsMatch = await compare(credentials.password as string, user.password);
+                    console.log("Auth: Verifying password")
+                    const passwordsMatch = await compare(credentials.password as string, user.password);
 
-                if (passwordsMatch) return user;
-
-                return null;
+                    if (passwordsMatch) {
+                        console.log("Auth: Password match, returning user")
+                        return user;
+                    }
+                    console.log("Auth: Password mismatch")
+                    return null;
+                } catch (error) {
+                    console.error("Auth Error:", error)
+                    return null
+                }
             },
         }),
     ],

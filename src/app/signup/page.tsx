@@ -24,15 +24,20 @@ function SubmitButton() {
     )
 }
 
+import { toast } from "react-hot-toast"
+
 export default function SignupPage() {
     const [state, dispatch, isPending] = useActionState(registerUser, undefined)
     const router = useRouter()
 
     useEffect(() => {
-        // If success, we could redirect to login or dashboard
-        // Note: Current action returns { success: string } on success
         if (state?.success) {
-            router.push('/login?message=Account created! Please log in.')
+            toast.success(state.success)
+            router.push('/login')
+        }
+        if (state?.error) {
+            const msg = typeof state.error === 'string' ? state.error : "Please check your inputs."
+            toast.error(msg)
         }
     }, [state, router])
 

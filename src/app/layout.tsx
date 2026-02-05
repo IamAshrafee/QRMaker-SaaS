@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { ToastProvider } from "@/components/providers/ToastProvider";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "QRMaker - The Ultimate SaaS QR & Bio-Link Generator",
-  description: "Create Dynamic QR Codes, Bio-Link Pages, and track analytics in seconds.",
+  title: "QRMaker SaaS",
+  description: "Next-gen QR Code & Bio Page Builder",
 };
 
 export default function RootLayout({
@@ -16,7 +17,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth" data-scroll-behavior="smooth">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        {children}
+        <ToastProvider />
+      </body>
     </html>
   );
 }

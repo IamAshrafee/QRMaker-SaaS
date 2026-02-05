@@ -22,8 +22,17 @@ function LoginButton() {
     )
 }
 
+import { toast } from "react-hot-toast"
+import { useEffect } from "react"
+
 export default function LoginPage() {
     const [errorMessage, dispatch, isPending] = useActionState(authenticate, undefined)
+
+    useEffect(() => {
+        if (errorMessage) {
+            toast.error(errorMessage)
+        }
+    }, [errorMessage])
 
     return (
         <AuthLayout
