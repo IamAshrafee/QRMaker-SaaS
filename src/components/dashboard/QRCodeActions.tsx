@@ -7,17 +7,23 @@ import Link from "next/link"
 import { deleteLink } from "@/actions/qrcodes"
 import { toast } from "react-hot-toast"
 import { useRouter } from "next/navigation"
-import QRCode from "qrcode"
+import { useDownloadQR } from "@/hooks/use-download-qr"
 
 interface QRCodeActionsProps {
     id: string
     url: string
     shortCode: string
     name: string
+    qrType?: "url" | "wifi" | "vcard" | "text"
+    qrConfig?: any
+    wifiConfig?: any
+    vCardConfig?: any
+    textContent?: string
 }
 
-export function QRCodeActions({ id, url, shortCode, name }: QRCodeActionsProps) {
+export function QRCodeActions({ id, url, shortCode, name, qrType, qrConfig, wifiConfig, vCardConfig, textContent }: QRCodeActionsProps) {
     const router = useRouter()
+    const { downloadQR } = useDownloadQR()
 
     const handleDelete = async () => {
         if (!confirm("Are you sure you want to delete this QR code?")) return
@@ -31,35 +37,8 @@ export function QRCodeActions({ id, url, shortCode, name }: QRCodeActionsProps) 
         }
     }
 
-    const handleDownload = async () => {
-        try {
-            // Generate QR Data URL
-            // In a real app, destination is the short link: domain.com/{shortCode}
-            // For dev/demo, we can use localhost or just the destination URL directly if short link logic isn't fully ready.
-            // Let's assume we want to encode the SHORT LINK.
-            const qrPayload = `${window.location.origin}/${shortCode}`
-
-            const dataUrl = await QRCode.toDataURL(qrPayload, {
-                width: 1000,
-                margin: 2,
-                color: {
-                    dark: '#000000',
-                    light: '#ffffff'
-                }
-            })
-
-            // Create phantom link to trigger download
-            const link = document.createElement('a')
-            link.href = dataUrl
-            link.download = `qr-${name || shortCode}.png`
-            document.body.appendChild(link)
-            link.click()
-            document.body.removeChild(link)
-            toast.success("QR Code downloaded")
-        } catch (error) {
-            console.error(error)
-            toast.error("Failed to generate download")
-        }
+    const handleDownload = () => {
+        downloadQR({ shortCode, name, qrType, qrConfig, wifiConfig, vCardConfig, textContent })
     }
 
     return (
@@ -70,7 +49,11 @@ export function QRCodeActions({ id, url, shortCode, name }: QRCodeActionsProps) 
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuItem disabled><Edit className="w-4 h-4 mr-2" /> Edit (Coming Soon)</DropdownMenuItem>
+                <Link href={`/dashboard/links/${id}/editor`} className="w-full">
+                    <DropdownMenuItem className="cursor-pointer">
+                        <Edit className="w-4 h-4 mr-2" /> Edit design
+                    </DropdownMenuItem>
+                </Link>
                 <DropdownMenuItem onClick={handleDownload} className="cursor-pointer">
                     <Download className="w-4 h-4 mr-2" /> Download PNG
                 </DropdownMenuItem>

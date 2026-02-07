@@ -81,6 +81,7 @@ export default async function QRCodesPage() {
                                         url={item.url}
                                         shortCode={item.slug}
                                         name={item.name}
+                                        qrConfig={item.qrConfig}
                                     />
                                 </TableCell>
                             </TableRow>

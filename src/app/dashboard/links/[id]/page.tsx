@@ -4,6 +4,7 @@ import Link from "next/link"
 import { AnalyticsCharts } from "@/components/dashboard/AnalyticsCharts"
 import { getLinkStats } from "@/actions/qrcodes"
 import { notFound } from "next/navigation"
+import { DownloadQRButton } from "@/components/dashboard/DownloadQRButton"
 
 export default async function LinkDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
@@ -42,9 +43,16 @@ export default async function LinkDetailPage({ params }: { params: Promise<{ id:
                             </Button>
                         </Link>
                     )}
-                    <Button variant="outline" className="border-indigo-500/20 hover:bg-indigo-500/10">
-                        <Download className="w-4 h-4 mr-2" /> Download QR
-                    </Button>
+                    <DownloadQRButton
+                        shortCode={link.slug}
+                        name={link.title || link.slug}
+                        qrType={link.qrType}
+                        qrConfig={link.qrConfig}
+                        wifiConfig={link.wifiConfig}
+                        vCardConfig={link.vCardConfig}
+                        textContent={link.textContent}
+                        className="border-indigo-500/20 hover:bg-indigo-500/10"
+                    />
                     <Link href={`/dashboard/links/${id}/editor`}>
                         <Button className="bg-glorious-gradient hover:opacity-90">
                             Edit Design

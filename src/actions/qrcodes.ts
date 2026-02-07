@@ -9,13 +9,53 @@ import { z } from "zod"
 
 // --- Schema Validation ---
 const CreateLinkSchema = z.object({
-    destinationUrl: z.string().url("Invalid URL format"),
+    destinationUrl: z.string().url("Invalid URL format").optional().or(z.literal("")),
     type: z.enum(["qr", "bio"]),
     title: z.string().optional(),
+
+    // QR Type & Config
+    qrType: z.enum(["url", "wifi", "vcard", "text"]).default("url"),
     qrConfig: z.object({
         color: z.string(),
         bgColor: z.string(),
         frame: z.string(),
+        logo: z.string().optional(),
+    }).optional(),
+
+    // WiFi Config
+    wifiConfig: z.object({
+        ssid: z.string(),
+        password: z.string().optional(),
+        encryption: z.enum(["WPA", "WEP", "nopass"]),
+        hidden: z.boolean().default(false),
+    }).optional(),
+
+    // vCard Config
+    vCardConfig: z.object({
+        firstName: z.string(),
+        lastName: z.string(),
+        phone: z.string().optional(),
+        mobile: z.string().optional(),
+        email: z.string().email().optional().or(z.literal("")),
+        website: z.string().url().optional().or(z.literal("")),
+        company: z.string().optional(),
+        jobTitle: z.string().optional(),
+        address: z.string().optional(),
+        fax: z.string().optional(),
+    }).optional(),
+
+    // Text Config
+    textContent: z.string().optional(),
+
+    // Smart Rules
+    password: z.string().optional(),
+    schedule: z.object({
+        activeFrom: z.date().optional(),
+        expireAt: z.date().optional(),
+    }).optional(),
+    pixels: z.object({
+        facebook: z.string().optional(),
+        google: z.string().optional(),
     }).optional(),
 })
 
@@ -40,38 +80,49 @@ export async function createLink(prevState: any, formData: FormData) {
         if (!session || !session.user) {
             return { error: "Unauthorized" }
         }
-
-        // Parse raw data from FormData or direct JSON if we change approach
-        // For now, let's assume raw data is passed as a JSON string in a hidden field OR we act as a direct API
-        // ACTUALLY: It's better to accept standard arguments for server actions used in client components
     } catch (err) {
         // placeholder
     }
 }
 
-// Rewriting createLink to take direct objects for easier Client Component usage
-export async function createQR(data: {
-    destinationUrl: string,
-    color: string,
-    bgColor: string,
-    title?: string
-}) {
+// Rewriting createQR to support all new fields
+export async function createQR(data: any) {
     try {
         const session = await auth()
         if (!session?.user?.id) return { error: "Unauthorized" }
 
-        const validated = CreateLinkSchema.safeParse({
-            destinationUrl: data.destinationUrl,
+        // Pre-processing
+        const qrType = data.qrType || "url"
+
+        // Conditional URL Validation: URL is required only if qrType is 'url'
+        let destinationUrl = data.destinationUrl
+        if (qrType === 'url' && !destinationUrl) {
+            return { error: "Destination URL is required" }
+        }
+
+        const payload = {
+            destinationUrl: destinationUrl,
             type: "qr",
+            qrType,
             title: data.title || "Untitled QR",
             qrConfig: {
-                color: data.color,
-                bgColor: data.bgColor,
-                frame: "square"
-            }
-        })
+                color: data.color || "#000000",
+                bgColor: data.bgColor || "#ffffff",
+                frame: data.frame || "square",
+                logo: data.logo
+            },
+            wifiConfig: data.wifiConfig,
+            vCardConfig: data.vCardConfig,
+            textContent: data.textContent,
+            password: data.password,
+            schedule: data.schedule,
+            pixels: data.pixels
+        }
+
+        const validated = CreateLinkSchema.safeParse(payload)
 
         if (!validated.success) {
+            console.error("Validation Error:", validated.error.flatten())
             return { error: validated.error.issues[0].message }
         }
 
@@ -82,10 +133,7 @@ export async function createQR(data: {
         await Link.create({
             user: session.user.id,
             slug,
-            type: "qr",
-            destinationUrl: validated.data.destinationUrl,
-            title: validated.data.title,
-            qrConfig: validated.data.qrConfig
+            ...validated.data
         })
 
         revalidatePath("/dashboard/qrcodes")
@@ -94,6 +142,73 @@ export async function createQR(data: {
     } catch (error) {
         console.error("Create QR Error:", error)
         return { error: "Failed to create QR code" }
+    }
+}
+
+export async function updateQR(id: string, data: any) {
+    try {
+        const session = await auth()
+        if (!session?.user?.id) return { error: "Unauthorized" }
+
+        // Pre-processing
+        const qrType = data.qrType || "url"
+
+        // Conditional URL Validation
+        let destinationUrl = data.destinationUrl
+        if (qrType === 'url' && !destinationUrl) {
+            return { error: "Destination URL is required" }
+        }
+
+        const payload = {
+            destinationUrl: destinationUrl,
+            qrType,
+            title: data.title || "Untitled QR",
+            qrConfig: {
+                color: data.color || "#000000",
+                bgColor: data.bgColor || "#ffffff",
+                frame: data.frame || "square",
+                logo: data.logo
+            },
+            wifiConfig: data.wifiConfig,
+            vCardConfig: data.vCardConfig,
+            textContent: data.textContent,
+            password: data.password,
+            schedule: data.schedule,
+            pixels: data.pixels
+        }
+
+        // Re-use CreateLinkSchema for validation (ignoring 'type' which is set to 'qr' implicitly)
+        // We need to extend/pick from the schema if we want partial updates, but for full update it's fine.
+        // Or manually check.
+        // Let's use strict manual check or just trust payload structure after basic Zod if possible.
+        // Actually, let's just use the same logic as create but update.
+
+        await connectDB()
+
+        // Verify ownership
+        const link = await Link.findOne({ _id: id, user: session.user.id })
+        if (!link) return { error: "Not Found or Unauthorized" }
+
+        // Update fields
+        link.destinationUrl = payload.destinationUrl
+        link.qrType = payload.qrType
+        link.title = payload.title
+        link.qrConfig = payload.qrConfig
+        link.wifiConfig = payload.wifiConfig
+        link.vCardConfig = payload.vCardConfig
+        link.textContent = payload.textContent
+        link.password = payload.password
+        link.schedule = payload.schedule
+        link.pixels = payload.pixels
+
+        await link.save()
+
+        revalidatePath("/dashboard/qrcodes")
+        return { success: true }
+
+    } catch (error) {
+        console.error("Update QR Error:", error)
+        return { error: "Failed to update QR code" }
     }
 }
 
@@ -154,7 +269,12 @@ export async function getLinks(limit = 20, offset = 0, type: 'qr' | 'bio' = 'qr'
             scans: link.clicks || 0,
             createdAt: new Date(link.createdAt).toLocaleDateString(),
             slug: link.slug,
-            type: link.type // Include type for UI logic
+            type: link.type, // 'qr' or 'bio'
+            qrType: link.qrType || 'url', // 'url', 'wifi', 'vcard', 'text'
+            qrConfig: link.qrConfig,
+            wifiConfig: link.wifiConfig,
+            vCardConfig: link.vCardConfig,
+            textContent: link.textContent
         }))
 
         return { links: serialized }
@@ -290,7 +410,12 @@ export async function getLinkStats(id: string, range: string = "30d") {
                 type: link.type,
                 destinationUrl: link.destinationUrl,
                 createdAt: link.createdAt,
-                clicks: link.clicks
+                clicks: link.clicks,
+                qrConfig: link.qrConfig,
+                qrType: link.qrType || 'url',
+                wifiConfig: link.wifiConfig,
+                vCardConfig: link.vCardConfig,
+                textContent: link.textContent
             },
             stats: {
                 timeline,

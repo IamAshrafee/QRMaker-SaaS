@@ -1,4 +1,5 @@
 import { ThemeEditor } from "./theme-editor";
+import { QRBuilder } from "@/components/dashboard/QRBuilder";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import LinkComponent from "next/link";
@@ -25,14 +26,34 @@ export default async function EditorPage({ params }: { params: Promise<{ id: str
     }
 
     if (link.type !== 'bio') {
+        // Use JSON serialization to robustly convert all ObjectIds and Dates to strings/primitives
+        // This prevents any "Only plain objects" errors for nested fields as well.
+        const qrData = {
+            ...JSON.parse(JSON.stringify(link)),
+            id: link._id.toString()
+        }
+
         return (
-            <div className="p-8 text-center text-muted-foreground">
-                <p>This is a QR Code redirect, not a Bio Page.</p>
-                <LinkComponent href={`/dashboard/links/${id}`} className="text-indigo-500 hover:underline mt-4 block">
-                    Go Back
-                </LinkComponent>
+            <div className="h-screen flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+                {/* Navbar for QR Editor */}
+                <div className="h-16 border-b bg-white dark:bg-slate-900 flex items-center justify-between px-6 shrink-0">
+                    <div className="flex items-center gap-4">
+                        <LinkComponent href={`/dashboard/qrcodes`} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                            <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+                        </LinkComponent>
+                        <div>
+                            <h1 className="font-bold text-lg">{link.title || "Untitled QR"}</h1>
+                            <p className="text-xs text-muted-foreground">Editor</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* QR Builder in Edit Mode */}
+                <div className="flex-1 overflow-hidden">
+                    <QRBuilder initialData={qrData} />
+                </div>
             </div>
-        );
+        )
     }
 
     return (
